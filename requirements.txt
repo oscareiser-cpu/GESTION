@@ -1,0 +1,7 @@
+# Utilidades para trabajar en el proyecto (no las necesita el programa para funcionar)
+python-docx
+striprtf
+reportlab
+pyflakes
+openpyxl
+pypdf
