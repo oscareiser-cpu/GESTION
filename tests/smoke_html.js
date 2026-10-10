@@ -1,5 +1,5 @@
 // Prueba de humo: abre Complexil en Chromium, hace la primera puesta en marcha,
-// recorre todas las pantallas del menu e imprime un pedido. Falla si hay errores
+// recorre todas las pantallas del menu, imprime un pedido y comprueba el antivirus. Falla si hay errores
 // de JavaScript o avisos inesperados.
 // Uso: node tests/smoke_html.js
 const path = require('path');
@@ -18,7 +18,7 @@ const CLAVE = 'Tres-Tortugas-Bigues-26';
   page.on('pageerror', e => errores.push(`[${donde}] ${e.message}`));
   page.on('dialog', d => {
     // El unico aviso esperado es el de la contrasena de admin recien creada
-    if (!/Contraseña de admin guardada/.test(d.message())) errores.push(`[${donde}] aviso inesperado: ${d.message().slice(0, 120)}`);
+    if (!/Contraseña de admin guardada|ANTIVIRUS DE COMPLEXIL/.test(d.message())) errores.push(`[${donde}] aviso inesperado: ${d.message().slice(0, 120)}`);
     d.dismiss().catch(() => {});
   });
 
@@ -34,12 +34,15 @@ const CLAVE = 'Tres-Tortugas-Bigues-26';
 
   const menu = page.locator('.ni');
   const n = await menu.count();
+  // cierra cualquier dialogo que haya abierto el programa (p. ej. contrasena de copias, que sale sola)
+  const cerrarDialogos = () => page.evaluate(() => [...document.querySelectorAll('button')]
+    .filter(b => b.offsetParent && /^(Cancelar|Más tarde)$/.test(b.textContent.trim())).forEach(b => b.click()));
   for (let i = 0; i < n; i++) {
-    // cierra cualquier dialogo que haya abierto el programa (p. ej. contrasena de copias)
-    await page.evaluate(() => [...document.querySelectorAll('button')]
-      .filter(b => b.offsetParent && /^(Cancelar|Más tarde)$/.test(b.textContent.trim())).forEach(b => b.click()));
+    await cerrarDialogos();
     donde = (await menu.nth(i).innerText()).trim();
-    await menu.nth(i).click({ timeout: 3000 }).catch(e => errores.push(`[${donde}] no se puede abrir: ${e.message.split('\n')[0]}`));
+    await menu.nth(i).click({ timeout: 3000 })
+      .catch(async () => { await cerrarDialogos(); await menu.nth(i).click({ timeout: 3000 }); })
+      .catch(e => errores.push(`[${donde}] no se puede abrir: ${e.message.split('\n')[0]}`));
     await page.waitForTimeout(150);
   }
 
@@ -59,7 +62,32 @@ const CLAVE = 'Tres-Tortugas-Bigues-26';
   });
   if (pedido !== 'ok') errores.push(`[${donde}] ${pedido}`);
 
+  donde = 'antivirus';
+  const av = await page.evaluate(async () => {
+    const eicar = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+    const casos = [
+      [new File([eicar], 'eicar.txt'), 'peligro'],
+      [new File([new Uint8Array([0x4d, 0x5a, 0x90, 0])], 'presupuesto.pdf'), 'peligro'],
+      [new File(['<svg onload="alert(1)"></svg>'], 'logo.svg'), 'peligro'],
+      [new File(['a;b\n1;=cmd|\' /C calc\'!A0\n'], 'tarifa.csv'), 'peligro'],
+      [new File(['codigo;precio\nCX1;-5,20\n'], 'tarifa.csv'), 'limpio'],
+    ];
+    const mal = [];
+    for (const [f, esperado] of casos) { const r = await cxAntivirus.analizar(f); if (r.nivel !== esperado) mal.push(`${f.name}: ${r.nivel} (esperado ${esperado})`); }
+    // el importador no debe recibir un archivo bloqueado
+    window.__recibidos = []; window.mgArchivo = f => window.__recibidos.push(f && f.name);
+    return mal;
+  });
+  av.forEach(m => errores.push(`[${donde}] ${m}`));
+  await page.evaluate(() => P('migracion', document.querySelector('.ni[onclick*="migracion"]')));
+  for (const [nombre, contenido] of [['eicar.txt', 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'], ['limpio.csv', 'a;b\n1;2\n']]) {
+    await page.setInputFiles('#mg-file', { name: nombre, mimeType: 'text/plain', buffer: Buffer.from(contenido) });
+    await page.waitForTimeout(600);
+  }
+  const recibidos = await page.evaluate(() => window.__recibidos);
+  if (JSON.stringify(recibidos) !== '["limpio.csv"]') errores.push(`[${donde}] el importador recibio ${JSON.stringify(recibidos)}`);
+
   await browser.close();
   if (errores.length) { console.error('Errores:\n' + errores.join('\n')); process.exit(1); }
-  console.log(`OK: Complexil abre ${n} pantallas sin errores e imprime pedidos con su formato`);
+  console.log(`OK: Complexil abre ${n} pantallas sin errores, imprime pedidos con su formato y el antivirus bloquea lo peligroso`);
 })();
