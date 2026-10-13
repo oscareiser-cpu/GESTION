@@ -3,6 +3,8 @@
 - cx-addon-docformato.js: formato de pedidos/albaranes/facturas.
 - cx-addon-antivirus.js: antivirus de los archivos que entran en el programa.
 - cx-addon-vies.js: comprobacion de NIF-IVA intracomunitarios en VIES.
+- cx-addon-sincro.js: ventas y contabilidad siempre sincronizadas.
+- cx-addon-estadisticas.js: estadisticas calculadas con los datos reales.
 
 Uso: python src/inyectar_addons.py [ruta_html]   (por defecto Complexil_4_22.html)
 """
@@ -15,7 +17,7 @@ html = html_path.read_text(encoding="utf-8")
 # Desde la 4.20 los modulos esperan a que se descifren los datos (type="text/cx-diferido")
 tipo = ' type="text/cx-diferido"' if "text/cx-diferido" in html else ""
 
-for nombre in ("docformato", "antivirus", "vies"):
+for nombre in ("docformato", "antivirus", "vies", "sincro", "estadisticas"):
     js = (aqui / f"cx-addon-{nombre}.js").read_text(encoding="utf-8")
     js = js.replace("__LOGO__", uri("logo_complexil.jpg")).replace("__MARCA__", uri("marca_agua.jpg"))
     bloque = f'<script id="cx-addon-{nombre}"{tipo}>\n' + js + "</script>\n"

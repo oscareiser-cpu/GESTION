@@ -95,6 +95,11 @@ const CLAVE = 'Tres-Tortugas-Bigues-26';
   });
   if (vies !== 'ok') errores.push(`[${donde}] ${vies}`);
 
+  donde = 'estadisticas';
+  const est = await page.evaluate(() => { P('estadisticas', document.querySelector('.ni[onclick*="estadisticas"]'));
+    const t = document.getElementById('p-estadisticas').innerText; return /Facturado \(base\)/.test(t) && /Ventas por cliente/.test(t) ? 'ok' : 'Estadisticas no calcula'; });
+  if (est !== 'ok') errores.push(`[${donde}] ${est}`);
+
   await browser.close();
   if (errores.length) { console.error('Errores:\n' + errores.join('\n')); process.exit(1); }
   console.log(`OK: Complexil abre ${n} pantallas sin errores, imprime pedidos con su formato, el antivirus bloquea lo peligroso y VIES esta en las fichas`);
