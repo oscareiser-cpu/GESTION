@@ -2,6 +2,7 @@
 
 - cx-addon-docformato.js: formato de pedidos/albaranes/facturas.
 - cx-addon-antivirus.js: antivirus de los archivos que entran en el programa.
+- cx-addon-vies.js: comprobacion de NIF-IVA intracomunitarios en VIES.
 
 Uso: python src/inyectar_addons.py [ruta_html]   (por defecto Complexil_4_22.html)
 """
@@ -14,7 +15,7 @@ html = html_path.read_text(encoding="utf-8")
 # Desde la 4.20 los modulos esperan a que se descifren los datos (type="text/cx-diferido")
 tipo = ' type="text/cx-diferido"' if "text/cx-diferido" in html else ""
 
-for nombre in ("docformato", "antivirus"):
+for nombre in ("docformato", "antivirus", "vies"):
     js = (aqui / f"cx-addon-{nombre}.js").read_text(encoding="utf-8")
     js = js.replace("__LOGO__", uri("logo_complexil.jpg")).replace("__MARCA__", uri("marca_agua.jpg"))
     bloque = f'<script id="cx-addon-{nombre}"{tipo}>\n' + js + "</script>\n"
@@ -24,6 +25,10 @@ for nombre in ("docformato", "antivirus"):
     else:
         i = html.rindex("</body>")
         html = html[:i] + bloque + html[i:]
+
+# La comprobacion VIES llama al lanzador local (abrir_complexil.py)
+if "connect-src 'self' http://127.0.0.1:8765" not in html:
+    html = html.replace("connect-src 'self'", "connect-src 'self' http://127.0.0.1:8765 http://localhost:8765", 1)
 
 html_path.write_text(html, encoding="utf-8")
 print("OK", html_path)

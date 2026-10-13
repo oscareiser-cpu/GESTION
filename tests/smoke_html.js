@@ -87,7 +87,15 @@ const CLAVE = 'Tres-Tortugas-Bigues-26';
   const recibidos = await page.evaluate(() => window.__recibidos);
   if (JSON.stringify(recibidos) !== '["limpio.csv"]') errores.push(`[${donde}] el importador recibio ${JSON.stringify(recibidos)}`);
 
+  donde = 'VIES';
+  const vies = await page.evaluate(async () => {
+    if (!document.getElementById('cf-cif-vies') || !document.getElementById('prv-cif-vies')) return 'faltan los botones VIES';
+    const r = await cxVies('', 'España');
+    return r.estado === 'formato' ? 'ok' : 'NIF vacio da ' + r.estado;
+  });
+  if (vies !== 'ok') errores.push(`[${donde}] ${vies}`);
+
   await browser.close();
   if (errores.length) { console.error('Errores:\n' + errores.join('\n')); process.exit(1); }
-  console.log(`OK: Complexil abre ${n} pantallas sin errores, imprime pedidos con su formato y el antivirus bloquea lo peligroso`);
+  console.log(`OK: Complexil abre ${n} pantallas sin errores, imprime pedidos con su formato, el antivirus bloquea lo peligroso y VIES esta en las fichas`);
 })();
