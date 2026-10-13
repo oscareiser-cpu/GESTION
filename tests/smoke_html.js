@@ -100,7 +100,13 @@ const CLAVE = 'Tres-Tortugas-Bigues-26';
     const t = document.getElementById('p-estadisticas').innerText; return /Facturado \(base\)/.test(t) && /Ventas por cliente/.test(t) ? 'ok' : 'Estadisticas no calcula'; });
   if (est !== 'ok') errores.push(`[${donde}] ${est}`);
 
+  donde = 'fichas ContaPlus';
+  const cp = await page.evaluate(() => { P('clientes', document.querySelector('.ni[onclick*="clientes"]')); showCliForm(true);
+    const ok = !!document.querySelector('.cxp-fondo #cli-form') && document.querySelectorAll('.cxp-fondo .cxp-tab').length >= 4;
+    showCliForm(false); return ok && !document.querySelector('.cxp-fondo') ? 'ok' : 'la ficha de cliente no abre en ventana con pestanas'; });
+  if (cp !== 'ok') errores.push(`[${donde}] ${cp}`);
+
   await browser.close();
   if (errores.length) { console.error('Errores:\n' + errores.join('\n')); process.exit(1); }
-  console.log(`OK: Complexil abre ${n} pantallas sin errores, imprime pedidos con su formato, el antivirus bloquea lo peligroso y VIES esta en las fichas`);
+  console.log(`OK: Complexil abre ${n} pantallas sin errores, imprime pedidos con su formato, el antivirus bloquea lo peligroso, VIES esta en las fichas y las fichas son tipo ContaPlus`);
 })();
