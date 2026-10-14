@@ -92,3 +92,9 @@ window.open=function(url){const w=_open.apply(window,arguments);
   if(w&&(!url||url==='about:blank'))try{const d=w.document,_c=d.close;d.close=function(){const r=_c.apply(d,arguments);try{botonVentana(w);}catch(e){}return r;};}catch(e){}
   return w;};
 })();
+
+/* barra superior: botón PDF del panel que se está viendo */
+(function(){const tb=document.querySelector('.topbar > div:last-child');if(!tb||document.getElementById('cx-pdf-top'))return;
+  tb.insertAdjacentHTML('afterbegin','<button class="btn" id="cx-pdf-top" title="Descargar en PDF lo que estás viendo"><i class="ti ti-file-type-pdf"></i>PDF</button>');
+  document.getElementById('cx-pdf-top').onclick=()=>{if(!window.impHtmlPanel)return;const p=typeof panelActivo==='function'?panelActivo():null;
+    cxPdfDeHtml(impHtmlPanel(p,{}),typeof tituloDe==='function'?tituloDe(p):document.getElementById('pt')?.textContent);};})();

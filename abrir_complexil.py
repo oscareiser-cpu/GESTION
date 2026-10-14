@@ -2,7 +2,7 @@
 
 Uso: doble clic en este archivo (o `python abrir_complexil.py`).
 El HTML debe estar en la misma carpeta que este script.
-Cierra esta ventana para detener el programa.
+Cierra esta ventana (o pulsa "Salir" en el programa) para detenerlo.
 """
 import http.server
 import os
@@ -21,15 +21,26 @@ if not os.path.exists(os.path.join(carpeta, ARCHIVO)):
 os.chdir(carpeta)
 
 url = f"http://localhost:{PUERTO}/{ARCHIVO}"
+class Manejador(http.server.SimpleHTTPRequestHandler):
+    def do_POST(self):
+        # Botón "Salir" del programa: responde y apaga el servidor
+        if self.path == "/salir":
+            self.send_response(200)
+            self.end_headers()
+            threading.Thread(target=servidor.shutdown).start()
+        else:
+            self.send_error(404)
+
+
 try:
-    servidor = socketserver.TCPServer(("127.0.0.1", PUERTO), http.server.SimpleHTTPRequestHandler)
+    servidor = socketserver.TCPServer(("127.0.0.1", PUERTO), Manejador)
 except OSError:
     # Ya hay uno abierto: solo abrimos el navegador
     webbrowser.open(url)
     sys.exit(0)
 
 threading.Timer(0.5, webbrowser.open, [url]).start()
-print(f"Complexil abierto en {url}\nCierra esta ventana para detenerlo.")
+print(f"Complexil abierto en {url}\nPulsa \"Salir\" en el programa o cierra esta ventana para detenerlo.")
 try:
     servidor.serve_forever()
 except KeyboardInterrupt:

@@ -1,5 +1,5 @@
 """Inserta (o reemplaza) en Complexil el módulo de formato de pedidos/albaranes/facturas
-el de descarga en PDF y la numeración por año (con html2canvas y jsPDF incluidos, para que funcione sin Internet).
+el de descarga en PDF y la numeración por año y el botón Salir (con html2canvas y jsPDF incluidos, para que funcione sin Internet).
 
 Uso: python src/inyectar_docformato.py [ruta_html]   (por defecto Complexil_4_6.html)
 """
@@ -17,7 +17,8 @@ pdf = vendor + (aqui / "cx-addon-pdf.js").read_text(encoding="utf-8")
 html = html_path.read_text(encoding="utf-8")
 # el de PDF va antes: el de formato usa cxPdfDeHtml
 num = (aqui / "cx-addon-numeracion.js").read_text(encoding="utf-8")
-for nombre, codigo in (("cx-addon-pdf", pdf), ("cx-addon-docformato", js), ("cx-addon-numeracion", num)):
+for nombre, codigo in (("cx-addon-pdf", pdf), ("cx-addon-docformato", js), ("cx-addon-numeracion", num),
+                       ("cx-addon-salir", (aqui / "cx-addon-salir.js").read_text(encoding="utf-8"))):
     bloque = f'<script id="{nombre}">\n' + codigo + "</script>\n"
     patron = re.compile(rf'<script id="{nombre}">.*?</script>\n', re.S)
     if patron.search(html):
