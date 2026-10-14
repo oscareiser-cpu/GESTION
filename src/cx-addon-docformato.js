@@ -118,7 +118,8 @@ ${d.vf?`<div class="x-vf"><b>VERI*FACTU</b> · Huella: ${esc(d.vf.huella||'—')
 <div class="x-res">${esc(E.residuos)}</div></div>`;}
 
 function pagina(d){return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(d.titulo+' '+d.num)}</title><style>@page{size:A4 portrait;margin:10mm 12mm}body{margin:0;background:#fff}</style></head><body>${fragmento(d)}</body></html>`;}
-function imprimir(d){if(!d)return;const html=pagina(d);
+function imprimir(d,pdf){if(!d)return;const html=pagina(d);
+  if(pdf&&window.cxPdfDeHtml){cxPdfDeHtml(html,d.titulo+' '+d.num);return;}
   if(window.impEnviar){impEnviar(html,{titulo:d.titulo+' '+d.num});return;}
   const w=window.open('','_blank','width=900,height=1000');if(!w){alert('Permite ventanas emergentes para imprimir.');return;}
   w.document.write(html.replace('</body>','<script>window.onload=()=>setTimeout(()=>print(),200)<\/script></body>'));w.document.close();}
@@ -160,13 +161,15 @@ window.cxDocVenta=ventaDoc;window.cxDocCompra=compraDoc;window.cxDocAlbPrv=albPr
 
 /* ── clientes: Ventas → Imprimir y centro de Impresión ──────────────── */
 window.tplVenta=function(v){return fragmento(ventaDoc(v));};
-window.vdetPrint=function(){imprimir(ventaDoc(ventas[vDetIdx]));};
+window.vdetPrint=function(pdf){imprimir(ventaDoc(ventas[vDetIdx]),pdf===true);};
+const bv=document.querySelector('button[onclick="vdetPrint()"]');
+if(bv&&!bv.nextElementSibling?.matches('[data-cxpdf]'))bv.insertAdjacentHTML('afterend','<button class="btn" data-cxpdf onclick="vdetPrint(true)"><i class="ti ti-file-type-pdf"></i>PDF</button>');
 
 /* ── proveedores: botón en cada fila / ficha ────────────────────────── */
-window.cxImpCompra=i=>imprimir(compraDoc(compras[i]));
-window.cxImpAlbPrv=i=>imprimir(albPrvDoc(i));
-window.cxImpGasto=id=>imprimir(gastoDoc((window.gastos||[]).find(g=>g.id===id)));
-const BTN=(fn,t)=>`<button class="btn sm" onclick="${fn}" title="${t}"><i class="ti ti-printer"></i></button>`;
+window.cxImpCompra=(i,pdf)=>imprimir(compraDoc(compras[i]),pdf);
+window.cxImpAlbPrv=(i,pdf)=>imprimir(albPrvDoc(i),pdf);
+window.cxImpGasto=(id,pdf)=>imprimir(gastoDoc((window.gastos||[]).find(g=>g.id===id)),pdf);
+const BTN=(fn,t)=>`<button class="btn sm" onclick="${fn}" title="${t}"><i class="ti ti-printer"></i></button><button class="btn sm" onclick="${fn.replace(/\)$/,',true)')}" title="Descargar PDF"><i class="ti ti-file-type-pdf"></i></button>`;
 if(typeof rCompras==='function'){const _r=rCompras;window.rCompras=function(){_r.apply(this,arguments);if(!compras.length)return;
   document.querySelectorAll('#cp-rows tr').forEach((tr,ri)=>{const td=tr.lastElementChild;if(td)td.insertAdjacentHTML('afterbegin',BTN(`cxImpCompra(${compras.length-1-ri})`,'Imprimir pedido al proveedor'));});};}
 if(typeof rEntMP==='function'){const _r=rEntMP;window.rEntMP=function(){_r.apply(this,arguments);
@@ -174,8 +177,9 @@ if(typeof rEntMP==='function'){const _r=rEntMP;window.rEntMP=function(){_r.apply
   if(!entmps.length)return;document.querySelectorAll('#ent-rows tr').forEach((tr,i)=>tr.insertAdjacentHTML('beforeend',`<td>${BTN(`cxImpAlbPrv(${i})`,'Imprimir albarán del proveedor')}</td>`));};}
 if(typeof window.gastoEditar==='function'){const _e=window.gastoEditar;window.gastoEditar=function(id){_e.apply(this,arguments);
   const dup=document.getElementById('gs-f-dup');if(!dup)return;let b=document.getElementById('gs-f-imp');
-  if(!b){dup.insertAdjacentHTML('beforebegin','<button class="btn" id="gs-f-imp"><i class="ti ti-printer"></i>Imprimir factura</button>');b=document.getElementById('gs-f-imp');}
-  const g=id!==null&&id!==undefined?window.gastos.find(x=>x.id===id):null;b.style.display=g?'':'none';b.onclick=()=>g&&cxImpGasto(g.id);};}
+  if(!b){dup.insertAdjacentHTML('beforebegin','<button class="btn" id="gs-f-imp"><i class="ti ti-printer"></i>Imprimir factura</button><button class="btn" id="gs-f-pdf"><i class="ti ti-file-type-pdf"></i>PDF</button>');b=document.getElementById('gs-f-imp');}
+  const g=id!==null&&id!==undefined?window.gastos.find(x=>x.id===id):null;b.style.display=g?'':'none';b.onclick=()=>g&&cxImpGasto(g.id);
+  const bp=document.getElementById('gs-f-pdf');if(bp){bp.style.display=g?'':'none';bp.onclick=()=>g&&cxImpGasto(g.id,true);}};}
 
 /* ── centro de Impresión: pestañas de pedido cliente y documentos de proveedor ── */
 const tabs=document.getElementById('imp-tabs');
@@ -198,11 +202,17 @@ if(typeof prvImp==='function'){const _p=prvImp;window.prvImp=function(){const va
   const d=t==='ped'?ventaDoc(ventas[+k]):t==='pprv'?compraDoc(compras[+k]):t==='aprv'?albPrvDoc(+k):gastoDoc((window.gastos||[]).find(g=>g.id==k));
   document.getElementById('imp-preview').innerHTML=d?fragmento(d):'';};}
 /* el centro de Impresión imprime los documentos comerciales con su propia hoja A4 (sin la cabecera genérica) */
-if(typeof impPrint==='function'){const _i=impPrint;window.impPrint=function(){const el=document.getElementById('imp-preview');
-  if(!el||!el.querySelector('.cxd'))return _i.apply(this,arguments);
+if(typeof impPrint==='function'){const _i=impPrint;window.impPrint=function(pdf){const el=document.getElementById('imp-preview');
+  if(!el||!el.querySelector('.cxd')){if(pdf!==true||!window.cxPdfDeHtml||!el||el.textContent.trim()==='Selecciona un documento')return _i.apply(this,arguments);
+    const css=typeof impCSS==='function'?impCSS(document.getElementById('imp-papel').value,document.getElementById('imp-orient').value):'';
+    cxPdfDeHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Complexil</title><style>${css}</style></head><body>${el.innerHTML}</body></html>`,document.getElementById('imp-doc').selectedOptions[0]?.text.split(' · ')[0]||'Documento');return;}
   const n=parseInt(document.getElementById('imp-copias').value)||1;const one=el.innerHTML;
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Complexil</title><style>@page{size:A4 portrait;margin:10mm 12mm}body{margin:0}</style></head><body>${Array(n).fill(one).join('<div style="page-break-after:always"></div>')}</body></html>`;
+  const tit=document.getElementById('imp-doc').selectedOptions[0]?.text.split(' · ')[0]||'Documento';
+  if(pdf===true&&window.cxPdfDeHtml){cxPdfDeHtml(html,(MIOS[impTipoActual]||impTipoActual)+' '+tit);return;}
   if(window.impEnviar)impEnviar(html,{titulo:'Documento'});else{const w=window.open('','_blank');w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);}
   try{impHist.unshift({tipo:impTipoActual.toUpperCase(),num:document.getElementById('imp-doc').selectedOptions[0]?.text||'—',fecha:tod(),copias:n});rImpHist();}catch(e){}};}
+const bi=document.querySelector('button[onclick="impPrint()"]');
+if(bi&&!bi.nextElementSibling?.matches('[data-cxpdf]'))bi.insertAdjacentHTML('afterend','<button class="btn" data-cxpdf onclick="impPrint(true)"><i class="ti ti-file-type-pdf"></i> Descargar PDF</button>');
 try{rCompras();}catch(e){}try{rEntMP();}catch(e){}try{cImp();}catch(e){}
 })();
